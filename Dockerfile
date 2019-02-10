@@ -3,7 +3,8 @@
 ############################
 # STEP 1 build executable binary
 ############################
-FROM golang@sha256:8dea7186cf96e6072c23bcbac842d140fe0186758bcc215acb1745f584984857 AS builder
+FROM golang@sha256:8dea7186cf96e6072c23bcbac842d140fe0186758bcc215acb1745f584984857 \
+  AS builder
 # Install git + SSL ca certificates.
 # Git is required for fetching the dependencies.
 # Ca-certificates is required to call HTTPS endpoints.
@@ -23,19 +24,14 @@ COPY . .
 RUN go mod download
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install
-
-############################
-# STEP 2 build a small image
-############################
+################################################################################
 FROM scratch
-ENV PORT=1919
-# Import from builder.
+
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
-# Copy our static executable
 COPY --from=builder /go/bin/simple-go-echo /go/bin/simple-go-echo
-# Use an unprivileged user.
+
 USER appuser
-EXPOSE $PORT
-# Run the hello binary.
-ENTRYPOINT ["/go/bin/simple-go-echo"]
+EXPOSE 1919
+HEALTHCHECK CMD [ "/go/bin/simple-go-echo", "-check" ]
+ENTRYPOINT ["/go/bin/simple-go-echo", "-port", "1919"]
